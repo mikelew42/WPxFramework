@@ -24,3 +24,77 @@
 
 #j-logger-wrap { min-height: 100px; border: 10px solid aliceblue !important; }
 .j-log-open { border: 3px solid #1F84D4 !important; }
+
+
+#mpl-items { min-height: 100px; margin: 20px 0; border: 10px solid #ffb080 !important; }
+
+.mpl-item { border-radius: 3px; font-family: "Open Sans"; font-size: 12px; border-top: 1px solid #fff !important;
+    border-bottom: 1px solid #dfdfdf !important;
+    background: #eee; overflow: hidden; }
+.mpl-item:hover { background: #ddd; }
+.mpl-line { float: left; width: 26px; padding: 2px 4px; text-align: right;}
+.mpl-titlebar { cursor: pointer; font-weight: bold; }
+.mpl-var { background: #0e4c7d; color: #cacaca; padding: 0 8px; border-radius: 3px; }
+.mpl-name { font-weight: bold; }
+.mpl-value { color: #fff; }
+.mpl-type { color: #555; padding: 0 5px; }
+.mpl-has-line .mpl-titlebar { margin-left: 24px; }
+.mpl-icon { float: left; background: #333; color: #fff;
+    width: 40px;
+    text-align: center; margin-right: 5px; padding: 2px 4px; }
+
+.mpl-title { padding: 2px 5px 2px 8px; }
+.mpl-content-wrap { display: none; padding: 2px 2px 2px 4px;  background: #fff; margin: 2px; }
+.mpl-content { padding: 0 3px; }
+.mpl-children { }
+
+.mpl-group { background: #ddd; }
+.mpl-group:hover { background: #ccc; }
+.mpl-group > .mpl-line {  }
+.mpl-group > .mpl-titlebar {color: #003e7e; font-weight: bold;  }
+
+.mpl-group > .mpl-content-wrap > .mpl-children > .mpl-value-item { display: inline-block; margin-right: 1px; margin-bottom: -6px;  }
+.mpl-cur-item { outline: orange solid 2px; }
+
+#mpl-logger { z-index: 99999; background: #fff; min-height: 100px; margin: 20px 0; border: 5px solid #003e7e; width: 50%; position: absolute; right: 0; top: 0; left: 50%; }
+
+.mpl-logger-content {overflow-y: scroll;
+    overflow-x: hidden; height: 100%; }
+
+
+.ui-resizable { position: relative;}
+.ui-resizable-handle { position: absolute;font-size: 0.1px; display: block; }
+.ui-resizable-disabled .ui-resizable-handle, .ui-resizable-autohide .ui-resizable-handle { display: none; }
+.ui-resizable-n { cursor: n-resize; height: 7px; width: 100%; top: -5px; left: 0; }
+.ui-resizable-s { cursor: s-resize; height: 7px; width: 100%; bottom: -5px; left: 0; }
+.ui-resizable-e { cursor: e-resize; width: 7px; right: -5px; top: 0; height: 100%; }
+.ui-resizable-w { cursor: w-resize; width: 7px; left: -5px; top: 0; height: 100%; }
+.ui-resizable-se { cursor: se-resize; width: 12px; height: 12px; right: 1px; bottom: 1px; }
+.ui-resizable-sw { cursor: sw-resize; width: 9px; height: 9px; left: -5px; bottom: -5px; }
+.ui-resizable-nw { cursor: nw-resize; width: 9px; height: 9px; left: -5px; top: -5px; }
+.ui-resizable-ne { cursor: ne-resize; width: 9px; height: 9px; right: -5px; top: -5px;}
+
+.j-log-container { display: none; background: #fff;  font-family: "Dosis"; position: absolute; width: 50%; z-index: 99999; border:13px solid #333; }
+.j-log-titlebar { cursor: pointer; font-size: 16px; font-weight: bold; font-family: "Dosis"; background: #333; color: #fff;
+    padding-bottom: 10px; }
+.j-log { min-height: 100px;  }
+
+.j-log-item { margin-bottom: 3px; border-radius: 3px; overflow: hidden; background: #eee; width: 100%; }
+.j-log-comment {}
+.j-log-meta { float: left; margin-right: 10px; width: 15%; min-width: 45px; max-width: 65px; line-height: 14px; padding: 5px; text-align: right; font-family: "Open Sans Condensed"; background: #ddd; }
+.j-log-line { font-size: 18px }
+.j-log-type { font-size: 12px; line-height: 10px; margin-top: 6px; }
+
+.j-log-preview { padding: 10px; }
+.j-log-name { font-weight: bolder; }
+
+.j-log-file { margin: 3px 0; }
+.j-log-file-title { padding-left: 2px; font-size: 12px; line-height: 12px;  }
+.j-log-file-content {  }
+
+.j-log-expandable > .j-log-content { display: none; }
+.j-log-expandable > .j-log-preview { cursor: pointer; }
+
+.j-log-object-preview { float: right; list-style: none; }
+.j-log-object-preview li { float: left; margin-right: 5px; padding: 0 5px; background: #000b42; border-radius: 3px; border: 1px solid #00218f; color: #fff; }
+.j-preview-name { font-weight: bold; }

@@ -37,222 +37,559 @@
 		});
 	}
 })(jQuery);
-
 ;(function($){
 
-	$(document).ready(function(){
+	var MPL = window.MPL = {};
 
-	});
+	MPL.ItemFactory = {
+		rules: [],
+		registerItemConstructor: function(ItemConstructor){
+			if (!this.rules[ItemConstructor.priority])
+				this.rules[ItemConstructor.priority] = [];
 
-	var jLog = window.jLog = function(file, line, label, args, context){
-		var logItem = new LogItem({
-			file: file,
-			line: line,
-			label: label,
-			value: args,
-			context: context,
-			stack: (new Error).stack
-		});
-
-	///	jLogger.open(logItem);
-	};
-	var jLogValue = window.jLogValue = function(file, line, label, value, context){
-		var logItem = new LogItem({
-			file: file,
-			line: line,
-			label: label,
-			value: value,
-			context: context,
-			stack: (new Error).stack
-		});
-
-		jLogger.add(logItem);
-	};
-	var jLogOpen = window.jLogOpen = function(file, line, label, value, context){
-		var logItem = new LogItem({
-			file: file,
-			line: line,
-			label: label,
-			value: value,
-			context: context,
-			stack: (new Error).stack,
-			open: true
-		});
-		jLogger.add(logItem);
-	};
-	var jLogEnd = window.jLogEnd = function(file, line, label, args, context){
-		//jLogValue(file, line, label, args, context);
-		jLogger.end();
-	};
-
-	var LogItemView = Backbone.View.extend({
-		initialize: function(){
-			this.listenTo(this.model, 'change', this.render);
-			this.render();
+			this.rules[ItemConstructor.priority].push(ItemConstructor);
 		},
-		render: function(){
-			if (!docReady()){
-				if (!this.renderQueued){
-					this.renderQueued = true;
-					$(document).ready($.proxy(this.render, this));
-				}
-				return false;
-			} else {
-				// kind of hacky way to add the template
-				if (!this.$el.hasClass('j-log-item'))
-					this.setElement(    $( _.template( $('#j-log-item-template').html() )() )    );
-
-				this.$el.find('.j-log-item-title').html(this.model.get('contextLabel') + " " + this.model.get('file') + ":" + this.model.get('line') + ": " + this.model.get('label') + " === " +  this.model.get('value'));
-
-				if (typeof this.model.get('value') === 'object')
-					this.$el.find('.j-log-item-content').html('test content for object');
-
-				if (this.model.get('open'))
-					this.$el.addClass('j-log-open');
-
-				if (this.model.get('parent')){
-					//console.log('render parent id: ' + this.model.get('parent').cid);
-					var parentContent;
-					if (parentContent = this.model.get('parent').view.$el.children('.j-log-item-content')){
-						parentContent.append(this.$el);
-						wpxDebugInit(parentContent);
+		createItem: function(options){
+			for (var priority in this.rules){
+				for (var i in this.rules[priority]){
+					if ( this.rules[priority][i].validate(options) ){
+						return new this.rules[priority][i](options);
 					}
 				}
 			}
+			return false;
 		}
-	});
+	};
 
+	/* ITEM */
 
-	var Log = Backbone.Collection.extend({
-		model: LogItem,
-		currentId: 0, // cid of current item
-
-		/**
-		 * The current log item is the target for new log items as they are added.  This method returns the current
-		 * log item.
-		 * @returns LogItem
-		 */
-		current: function(){
-			// can i prevent these from being recursive?
-			//jLog('debug.js', 101, '.current() args', arguments, this);
-			//jLogEnd('debug.js', 102, 'return this.get(this.currentId);', { "this.currentId": this.currentId, "this.get(this.currentId)": this.get(this.currentId), "return": this.get(this.currentId) }, this);
-			//console.log(this.currentId);
-			//console.log(this.get(this.currentId));
-
-			//return false;
-			return this.currentId ? this.get(this.currentId) : false;
-		}
-	});
-
-/*
-This method of making private constructors is kinda dumb - then nobody can use them outside of this enclosure.
- */
-	var LogItem = Backbone.Model.extend({
-		defaults: { parent: null, open: false},
-		children: null, // Log collection of children
-		logger: null, // whether to open this item as a container, which REQUIRES a matching END
+	var itemDefaults = {
+		parent: null,
+		icon: null,
+		title: 'Item Title',
+		content: null,
+		viewConstructor: 'ItemView'
+	};
+	MPL.Item = Backbone.Model.extend({
+		defaults: itemDefaults,
 		initialize: function(){
-			this.children = new Log();
-			this.view = new LogItemView({ model: this});
+			this.itemInit();
 
-			var context = this.get('context');
-			if (typeof context === "object" ){
-				if (context.name)
-					this.set('contextLabel', context.name);
-				else
-					this.set('contextLabel', 'no context');
-
+			if (this.get('backtrace')){
+				this.set('line', this.get('backtrace')[0].line);
+				this.set('file', this.get('backtrace')[0].file);
 			}
+
+			if (this.get('name'))
+				this.set('title', this.get('name'));
+
+			if (this.get('parent'))
+				this.get('parent').add(this);
+
+			this.children = new MPL.Items();
+			this.views = [];
 		},
-		currentChild: function(){
-			return this.children ? this.children.current() : false ;
+		itemInit: function(){},
+		render: function(options){
+			options.model = this;
+			var newView = new MPL[this.get('viewConstructor')]( options );
+			this.views.push(newView);
+
+			return newView;
 		},
 		add: function(logItem){
-			var cur;
-			if (cur = this.currentChild())
-				cur.add(logItem);
-			else
-				this.addNewChild(logItem);
-		},
-		addNewChild: function(logItem){
 			logItem.set('parent', this);
 
 			this.children.add(logItem);
 
-			if (logItem.get('open'))
-				this.children.currentId = logItem.cid;
+			if (jlog && jlog.ready())
+				this.renderChildren();
+
+			return this;
 		},
-		render: function(){
-			console.log('LogItem.render()');
-			this.view.render();
-		},
-		end: function(){  // important note:  This model of a 'deeper' method, that potentially goes deeper on every call, has a lot of contingencies.
-			var cur;
-			if (cur = this.currentChild()){
-				cur.end();
-				//cur.render();
-			} else {
-				this.children.currentId = 0;
-				//this.render();
-			}
+		getFileAndLine: function(){
+			if (this.get('backtrace'))
+				return this.get('backtrace')[0].file + "@" + this.get('backtrace')[0].line;
+		}
+	});
+	$.extend(MPL.Item, {
+		type: 'default',
+		priority: 100,
+		validate: function(options){ return true; }
+	});
+	MPL.ItemFactory.registerItemConstructor(MPL.Item);
+
+
+	/* ITEMS COLLECTION */
+	MPL.Items = Backbone.Collection.extend({
+		model: MPL.Item
+	});
+
+
+	/* GROUP */
+	MPL.GroupItem = MPL.Item.extend({
+		defaults: $.extend({}, itemDefaults, {
+			viewConstructor: "GroupItemView"
+		})
+	});
+	$.extend(MPL.GroupItem, {
+		type: 'group' // priority and validate shouldn't be necessary
+	});
+	// MPL.ItemFactory.registerItemConstructor(MPL.GroupItem); // groups won't be part of the dynamic construction, for now
+
+	/* FILE */
+	MPL.FileItem = MPL.Item.extend({
+		defaults: $.extend({}, itemDefaults, {
+			viewConstructor: "FileItemView"
+		}),
+		itemInit: function(){
+			this.set('title', this.get('file'));
 		}
 	});
 
-	var LoggerView = Backbone.View.extend({
+	/* VALUE */
+	var valueItemDefaults = {
+		parent: null,
+		icon: null,
+		name: 'valueName',
+		value: 'default value',
+		content: null,
+		viewConstructor: 'ValueItemView'
+	};
+	MPL.ValueItem = MPL.Item.extend({
+		defaults: valueItemDefaults
+	});
+	$.extend(MPL.ValueItem, {
+		type: 'value',
+		priority: 55,
+		validate: function(options){ return typeof options.value !== "undefined"; }
+	});
+	MPL.ItemFactory.registerItemConstructor(MPL.ValueItem);
+
+	/* UNDEFINED */
+	MPL.UndefinedItem = MPL.ValueItem.extend({});
+	$.extend(MPL.UndefinedItem, {
+		type: 'undefined',
+		priority: 50,
+		validate: function(options){ return typeof options.value === "undefined"; }
+	});
+	MPL.ItemFactory.registerItemConstructor(MPL.UndefinedItem);
+
+	/* BOOLEAN */
+	MPL.BooleanItem = MPL.ValueItem.extend({
+
+	});
+	$.extend(MPL.BooleanItem, {
+		type: 'boolean',
+		priority: 50,
+		validate: function(options){ return typeof options.value === "boolean"; }
+	});
+	MPL.ItemFactory.registerItemConstructor(MPL.BooleanItem);
+
+	/* STRING */
+	MPL.StringItem = MPL.ValueItem.extend({});
+	$.extend(MPL.StringItem, {
+		type: 'string',
+		priority: 50,
+		validate: function(options){ return typeof options.value === "string"; }
+	});
+	MPL.ItemFactory.registerItemConstructor(MPL.StringItem);
+
+	/* NUMBER */
+	MPL.NumberItem = MPL.ValueItem.extend({});
+	$.extend(MPL.NumberItem, {
+		type: 'number',
+		priority: 50,
+		validate: function(options){ return typeof options.value === "number"; }
+	});
+	MPL.ItemFactory.registerItemConstructor(MPL.NumberItem);
+
+	/* OBJECT */
+	MPL.ObjectItem = MPL.ValueItem.extend({
+		defaults: $.extend({}, valueItemDefaults, {
+			viewConstructor: "ObjectItemView"
+		})
+	});
+	$.extend(MPL.ObjectItem, {
+		type: 'object',
+		priority: 45,
+		validate: function(options){
+			return typeof options.value === "object";
+		}
+	});
+	MPL.ItemFactory.registerItemConstructor(MPL.ObjectItem);
+
+	/* jQUERY */
+	MPL.jQueryItem = MPL.ObjectItem.extend({
+		defaults: $.extend({}, valueItemDefaults, {
+			viewConstructor: "ObjectItemView"
+		})
+	});
+	$.extend(MPL.jQueryItem, {
+		type: 'jQuery',
+		priority: 40,
+		validate: function(options){
+			return options.value instanceof jQuery;
+		}
+	});
+	MPL.ItemFactory.registerItemConstructor(MPL.jQueryItem);
+
+	/* BACKBONE MODEL */
+	MPL.BackboneModelItem = MPL.ObjectItem.extend({
+		defaults: $.extend({}, valueItemDefaults, {
+			viewConstructor: "ObjectItemView"
+		})
+	});
+	$.extend(MPL.BackboneModelItem, {
+		type: 'Backbone.Model',
+		priority: 40,
+		validate: function(options){
+			return options.value instanceof Backbone.Model;
+		}
+	});
+	MPL.ItemFactory.registerItemConstructor(MPL.BackboneModelItem);
+
+
+	/*****************/
+	/**    VIEWS    **/
+	/*****************/
+	MPL.ItemView = Backbone.View.extend({
 		initialize: function(){
+			if (this.options.parent){
+				this.parent = this.options.parent;
+				this.options.$region = this.parent.$children;
+			}
 
+			if (this.options.$region)
+				this.render();
+			/// this.listenTo(this.model, 'change', this.refresh);
+		},
+		events: {
+			"click .mpl-titlebar": "toggle"
 		},
 		render: function(){
-			if (!this.$el.hasClass('j-logger'))
-				this.setElement(    $( _.template( $('#j-logger-template').html() )() )    );
+			if (!this.$el.hasClass('mpl-item'))
+				this.createElement();
 
-			$('#j-logger-wrap').append(this.$el);
+			this.refresh();
+		},
+		renderChildren: function(){
+			this.model.children.invoke('render', { parent: this });
+		},
+		toggle: function(){
+			this.renderChildren();
+
+			// if no content or children, just stop
+			// this could be problematic if children / content is removed after it slidesDown
+			if (!$.trim(this.$content.html()) && !$.trim(this.$children.html()))
+				return false;
+
+			// slide Toggle
+			this.$contentWrap.slideToggle();
+
+			return false;
+		},
+		refresh: function(){
+			this.refreshLine();
+			this.refreshIcon();
+			this.refreshTitle();
+			this.refreshContent();
+			//this.refreshFileWrap();
+			this.customRefresh();
+		},
+		refreshLine: function(){
+			if (this.model.get('line')){
+				this.$line.html(this.model.get('line'));
+				this.$el.addClass('mpl-has-line');
+			} else {
+				this.$line.hide();
+				this.$el.removeClass('mpl-has-line');
+			}
+		},
+		refreshIcon: function(){
+			if (this.model.get('icon'))
+				this.$icon.html(this.model.get('icon')).show();
+			else
+				this.$icon.hide();
+		},
+		refreshTitle: function(){
+			//if (this.model.get('title'))
+			this.$title.html(this.getTitle());
+		},
+		refreshContent: function(){
+			if (this.model.get('content')){
+				this.$content.html(this.model.get('content'));
+			}
+
+			/*
+			 if (!this.$consoleLog){
+			 this.$consoleLog = $('<div></div>').addClass('mpl-console-log-btn').html("> console");
+			 }
+			 var view = this;
+			 this.$consoleLog.off('click.debug.console').on('click.debug.console', function(){
+			 console.log(view.model.get('value'));
+			 });
+			 this.$content.prepend(this.$consoleLog);
+			 */
+		},
+		refreshFileWrap: function(){
+			var parent = this.model.get('parent');
+			if (parent){
+				var index = parent.children.indexOf(this.model),
+					previousSibling = parent.children.at(index-1);
+				if (this.model.get('file') !== parent.get('file')){
+
+
+					if (previousSibling && previousSibling.get('file') === this.model.get('file') && previousSibling.view.fileWrap){
+						this.$el.appendTo(previousSibling.view.fileWrap.$fileContent);
+						this.fileWrap = previousSibling.view.fileWrap;
+					} else {
+						this.createFileWrap();
+					}
+				} else if (previousSibling && previousSibling.get('file') !== this.model.get('file')) {
+					this.createFileWrap();
+				}
+			}
+		},
+		customRefresh: function(){},
+		refreshEvents: function(){
+			if (!$.trim(this.$content.html()) && !$.trim(this.$children.html()))
+			{
+				delete this.events["click .mpl-titlebar"];
+				this.delegateEvents();
+			} else {
+				this.events['click .mpl-titlebar'] = 'toggle';
+				this.delegateEvents();
+			}
+		},
+		createFileWrap: function(){
+			if (!this.fileWrap){
+				this.fileWrap = new Backbone.View();
+				this.fileWrap.setElement($(  _.template( $('#j-log-file-wrap-template').html())() ));
+				this.fileWrap.$fileName = this.fileWrap.$el.children('.j-log-file-title');
+				this.fileWrap.$fileContent = this.fileWrap.$el.children('.j-log-file-content');
+			}
+			this.fileWrap.$fileName.html(this.model.get('file'));
+
+			// check if its already nested properly
+			if (!this.fileWrap.$fileContent.find(this.$el).length){
+				this.fileWrap.$el.insertBefore(this.$el);
+				this.$el.appendTo(this.fileWrap.$fileContent);
+			}
+
+			//this.$item = this.$el;
+			//this.$el = this.fileWrap.$el;
+		},
+		createElement: function(){
+			this.setElement(    $( _.template( $('#mpl-item-template').html() )() )    );
+
+			// $titlebar is $icon then $title
+			this.$titlebar = this.$el.children('.mpl-titlebar');
+			this.$line = this.$el.children('.mpl-line');
+			this.$icon = this.$titlebar.children('.mpl-icon');
+			this.$title = this.$titlebar.children('.mpl-title');
+
+			// $contentWrap is $content then $children
+			this.$contentWrap = this.$el.children('.mpl-content-wrap');
+			this.$content = this.$contentWrap.children('.mpl-content');
+			this.$children = this.$contentWrap.children('.mpl-children');
+
+			this.customCreateElement();
+			this.appendToRegion();
+		},
+		appendToRegion: function(){
+			this.$el.appendTo(this.options.$region);
+		},
+		customCreateElement: function(){},
+		getTitle: function(){
+			return this.model.get('title');
 		}
 	});
-	/*
-	Change Logger to std Model with log property that is a LogItem
-	Merge add/open methods and use logItem.open = false (default) property
-	Use a generic End method, but can optionally take a logItem.  Just like it is currently
-	 */
-// Logger could extend jLogItem to avoid duplicating methods and to add functionality
-	var Logger = Backbone.Model.extend({
+
+
+	MPL.ItemViews = Backbone.Collection.extend({});
+
+
+	MPL.GroupItemView = MPL.ItemView.extend({
+		customCreateElement: function(){
+			this.$el.addClass('mpl-group');
+		}
+	});
+
+	MPL.ValueItemView = MPL.ItemView.extend({
+		customCreateElement: function(){
+			this.$el.addClass('mpl-value-item').addClass('mpl-' + this.model.constructor.type + '-item');
+			this.$var = $('<span></span>').addClass('mpl-var').prependTo(this.$title);
+			this.$name = $('<span></span>').addClass('mpl-name').prependTo(this.$var);
+			this.$type = $('<span></span>').addClass('mpl-type').insertAfter(this.$var);
+			this.$value = $('<span></span>').addClass('mpl-value').appendTo(this.$var);
+		},
+		refreshTitle: function(){ return false; },
+		getTitle: function(){
+			return this.model.get('name') + ": " + this.model.get('value');
+		},
+		customRefresh: function(){
+			this.$name.html(this.model.get('name') + ": " );
+			var value = this.model.get('value');
+
+			if (value === "default value")
+				value = "undefined";
+			else if (typeof value === "string")
+				value = '"' + value + '"';
+			else if (typeof value === "boolean" && !value)
+				value = "false";
+			else if (typeof value === "object")
+				value = value.toString();
+
+			this.$value.html("&nbsp;" + value);
+			//this.$type.html(this.model.constructor.type);
+			this.$var.attr('title', this.model.constructor.type);
+		},
+		toggle: function(){
+			console.log(this.model.get('value'));
+			jlog.last = this.model.get('value');
+			return false;
+		}
+	});
+
+	MPL.ObjectItemView = MPL.ValueItemView.extend({
+
+	});
+
+	MPL.Logger = Backbone.Model.extend({
 		defaults: {},
 		initialize: function(){
-			// find a way to extend Backbone to make this default functionality?
-			$.extend(this, this.get('root'));
 
-			// This holds all the log items
-			this.log = new LogItem({
-				root: { logger: this},
-				file: '',
-				line: '',
-				label: 'Root jLogger',
-				contextLabel: ''
+			this.log = new MPL.Item({
+				title: "Logger"
 			});
-
-			// This is the container $el for the entire log widget
-			this.view = new LoggerView({ model: this });
-
-			// render the main view on doc.ready
+			this.currentItem = this.log;
 			var logger = this;
-			$(document).ready(function(){
-				logger.view.render();
-				logger.log.view.$el.appendTo(logger.view.$el);
-				wpxDebugInit();
-			});
 
-			this.debug = true;
+			$(document).ready(function(){
+				logger.render();
+			});
 		},
-		add: function(logItem){
-			this.debug && console.log('Logger.add()');
-			logItem.logger = this;
-			this.log.add(logItem);
+		render: function(){
+			this.view = new Backbone.View({ model: this, id: 'mpl-logger' });
+			this.view.$el.prependTo($('body')).draggable().resizable();
+			this.view.$content = $('<div></div>').addClass('mpl-logger-content').appendTo(this.view.$el);
+			this.log.render({ events: {}, $region: this.view.$content }).toggle();
+			this.set('ready', true);
+		},
+		getBacktrace: function(){
+			var stack =
+				((new Error).stack + '\n')
+					.replace(/^\s+(at eval )?at\s+/gm, '') // remove 'at' and indentation
+					.replace(/^([^\(]+?)([\n$])/gm, '{anonymous}() ($1)$2')
+					.replace(/^Object.<anonymous>\s*\(([^\)]+)\)/gm, '{anonymous}() ($1)')
+					.replace(/^(.+) \((.+)\)$/gm, '$1```$2')
+					.split('\n')
+					.slice(1, -1);
+
+			var backtrace = [];
+
+			for (var i in stack){
+				stack[i] = stack[i].split('```');
+				var bt = {
+					func: stack[i][0],
+					fullPathAndLine: stack[i][1]
+
+				};
+
+				var pathBreakdown = stack[i][1].split(':');
+				bt.file = pathBreakdown[1].replace(/^.*[\\\/]/, '');
+				bt.line = pathBreakdown[2];
+				bt.linePos = pathBreakdown[3];
+
+				backtrace.push(bt);
+			}
+
+			return backtrace.slice(3);
+		},
+		logger: function(values){
+			if (typeof values === "string"){
+				this.currentItem.add(new MPL.Item({ title: values, parent: this.currentItem, backtrace: this.getBacktrace() }));
+				return this;
+			}
+
+			if (typeof values === "object"){
+
+				for (var i in values){
+					var newItem = MPL.ItemFactory.createItem({
+						name: i,
+						value: values[i],
+						parent: this.currentItem,
+						backtrace: this.getBacktrace()
+					});
+					if (newItem){
+						this.currentItem.add(newItem);
+					}
+				}
+			}
+			return this;
+		},
+		group: function(options){
+			// options.name === "Group Name"
+			if (typeof options === "string"){
+				options = { name: options };
+			}
+			options.parent = this.currentItem;
+			options.backtrace = this.getBacktrace();
+			var group = new MPL.GroupItem(options);
+			this.currentItem = group;
+			return this;
 		},
 		end: function(){
-			this.log.end();
+			if (this.currentItem.get('parent'))
+				this.currentItem = this.currentItem.get('parent');
+
+			this.scrollToBottom()
+
+			return this;
+		},
+		ready: function(){
+			return this.get('ready');
+		},
+		scrollToBottom: function(){
+			if(this.ready() && true)
+				this.view.$content.scrollTop(this.view.$content[0].scrollHeight);
+			return this;
 		}
 	});
 
-	var jLogger = window.jLogger = new Logger();
+	$(document).ready(function(){
+		jlog.end();
+		var $items = $('#mpl-items');
+		jlog('DOCUMENT.READY');
+		jlog.group('debug.js doc.ready');
+		jlog.end();
+	});
 
+	var tLogger = new MPL.Logger();
+
+	window.jlog = $.proxy(tLogger.logger, tLogger);
+	window.jlog.group = $.proxy(tLogger.group, tLogger);
+	window.jlog.end = $.proxy(tLogger.end, tLogger);
+
+	window.jlog.ready = $.proxy(tLogger.ready, tLogger);
+	jlog.group('root group');
+
+	jlog.group('New Group1');
+	jlog("some text");
+	jlog({ title: 'Hmmm', value: "wtf", tLogger: tLogger });
+	//jlog({ myValue: 'This is my value', inGroup: 'This value should be inside the Grrrroup'});
+	//jlog('end');
+	jlog("some text");
+	//jlog("Just log a string quickly, without thinking up a prop name?");
+	var myVar = 555;
+	jlog({ myVar: myVar, $body: $('body'), thisIsBoolean: true, thisIsBoooolean: false });
+	jlog("some text");
+	jlog.end();
+
+	var counter = 0;
+	window.debugFunction = function(){
+		counter++;
+		jlog({counter: counter });
+	};
 })(jQuery);

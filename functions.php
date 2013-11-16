@@ -13,6 +13,8 @@ function wpx_enqueue(){
 		wp_enqueue_script('jquery-ui');
 	}
 
+	if (!is_admin()){
 	wp_enqueue_style('wpx-debug', WPX_PLUGIN_URL . 'css/debug.css');
 	wp_enqueue_script('wpx-debug', WPX_PLUGIN_URL . 'js/debug.js', array('jquery', 'backbone'));
+	}
 }
