@@ -5,8 +5,8 @@ class WPxWPBase extends WPxBase {
 	protected $_wp; // WP_* object
 	protected $_wp_props = array(); // list of properties on the WP_* object
 	protected $_meta_keys = array();
-	protected $_wp_prop_aliases = array('id' => 'ID'); // 'alias' => 'prop', 'content' => 'post_content'
-	protected $_meta_key_aliases = array();
+	protected static $_wp_prop_aliases = array('id' => 'ID'); // 'alias' => 'prop', 'content' => 'post_content'
+	protected static $_meta_key_aliases = array();
 	protected $_modified_wp_fields = array();  // when a wp field gets modified, it gets added here
 
 	/**
@@ -14,11 +14,15 @@ class WPxWPBase extends WPxBase {
 	 * make an alias for id=>ID, then Id and iD would work also.
 	 */
 	protected function _get_wp_prop_from_alias($name){
-		return $this->_wp_prop_aliases[strtolower($name)];
+		if (array_key_exists(strtolower($name), static::$_wp_prop_aliases))
+			return static::$_wp_prop_aliases[strtolower($name)];
+		return false;
 	}
 
 	protected function _get_meta_key_from_alias($name){
-		return $this->_meta_key_aliases[strtolower($name)];
+		if (array_key_exists(strtolower($name), static::$_meta_key_aliases))
+			return static::$_meta_key_aliases[strtolower($name)];
+		return false;
 	}
 
 /**********************
@@ -50,6 +54,7 @@ class WPxWPBase extends WPxBase {
 
 		return $this->{$name};
 	}
+
 	public function set($name, $value){
 		// $this->set_{$name}() ?
 		if (method_exists($this, $set_method = 'set_' . $name)){

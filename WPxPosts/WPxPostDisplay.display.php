@@ -12,7 +12,7 @@ class WPxPostDisplay extends WPxDisplay {
 			$this->post = $post;
 	}
 
-	public function render(){
+	public function render_default(){
 		?><div class="post">
 			<?php $this->title(); ?>
 			<?php $this->content(); ?>

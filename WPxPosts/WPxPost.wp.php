@@ -13,17 +13,29 @@
  * @method WPxPost modified_gmt() Get or Set
  * @method WPxPost parent() Get or Set
  * @method WPxPost type() Get or Set
- * @property WPxPostDisplay $display
+ * @property WPxPostDisplay $display These change the chainability
  * @property WPxUser $author
  */
 class WPxPost extends WPxWPBase {
 
-	protected $display;
+	/*
+	 * It appears as though $obj->protected_prop will check against the __get/__set magic methods
+	 * before throwing an error that we can't access a protected property.  I thought this was different...
+	 *
+	 * Still, internally, $this->author or $this->display will access these null properties rather than the
+	 * get_display and get_author magic methods.
+	 */
+	protected $_display;
+	protected $_author;
 
-	protected $_wp_prop_aliases = array(
+	protected static $_wp_prop_aliases = array(
 		'id' => 'ID',
 		'content' => 'post_content',
+		// Why not set this to 'author_id' => 'post_author', then, and forget the get_author_id function...
+		// Can you not have ->author-> and ->author(13) ??  SEE NOTE BELOW @ get_author_id()...
+		// I still need a get_author function, for ->author-> to work, I think...
 	//	'author' => 'post_author', // use get_author_id if you need just the id
+		'author_id' => 'post_author',
 		'date' => 'post_date',
 		'date_gmt' => 'post_date_gmt',
 		'title' => 'post_title',
@@ -38,6 +50,7 @@ class WPxPost extends WPxWPBase {
 	);
 
 	public function __construct($post_or_id = null){
+		wpx_log($post_or_id, 'WPxPost->__construct($post_or_id)');
 		if ($post_or_id)
 			$this->load($post_or_id);
 	}
@@ -55,26 +68,53 @@ class WPxPost extends WPxWPBase {
 	/**
 	 * This method is accessed when you $post->display->...
 	 */
-	protected function get_display(){
+	public function get_display(){
 		// wait until we need it to load it
-		if (!$this->display)
-			$this->display = new WPxPostDisplay($this);
+		if (!isset($this->_display))
+			$this->_display = new WPxPostDisplay($this);
 
-		return $this->display;
+		return $this->_display;
+	}
+
+	public function set_display($display){
+		$this->_display = $display;
+		return $this;
+	}
+
+	/**
+	 * This method is accessed when you $post->author->...
+	 */
+	public function get_author(){
+		// wait until we need it to load it
+		//if (!isset($this->_author))
+			//$this->_author = new WPxUser($this);
+
+		return $this->_author;
+	}
+
+	public function set_author($author){
+		$this->_author = $author;
+		return $this;
 	}
 
 	/**
 	 * This was a normal get/set via $this->author($set), however I wanted the author property to be the WPxUser object,
 	 * and didn't want an author_id() function getting in the way of the auto complete.  Typing $this->aut[TAB] should
 	 * always auto complete to the author property, not author_id().  So, use get_author_id() instead.
+	 *
+	 * I'm not sure which way I like better...
+	 *
 	 * @return int WP_User id
-	 */
+
 	public function get_author_id(){
 		return $this->_wp_get('post_author');
 	}
+	 */
+
 
 	public function save(){
 		if ($this->_modified_wp_fields){
+			m_debug($this->_modified_wp_fields);
 			$postarr = array();
 
 			foreach ($this->_modified_wp_fields as $field)
