@@ -1,3 +1,13 @@
 WPxFramework
 ============
-<h1>Header 1</h1>
+**Two Asterisks**
+
+    // this is indented
+    function name(){
+      // is this highlighted?
+    }
+    
+*Single Asterisk*
+
+ - List Item
+ - List Item
