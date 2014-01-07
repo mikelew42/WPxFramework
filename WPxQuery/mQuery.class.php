@@ -1,5 +1,4 @@
 <?php
-
 /*
  * 
  * 1) Reverse engineer $wpdb
@@ -46,19 +45,3 @@
  * 
  * indexes?  use index hinting for joins?  http://dev.mysql.com/doc/refman/5.0/en/join.html
  */
-/*
-class mQuery extends mBase {
-	protected $where = array(); // array of mQWhere
-	protected $select; // mQSelect
-	
-	
-}
-*/
-/*
- * This class is for the actual $sql?
- */
-/*
-class mSQL extends mBase {
-	
-}
-*/
