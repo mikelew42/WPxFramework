@@ -9,5 +9,11 @@ WPxFramework
     
 *Single Asterisk*
 
+```php
+<?php
+$this->that();
+?>
+```
+
  - List Item
  - List Item
