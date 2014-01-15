@@ -1,6 +1,8 @@
 WPxFramework
 ============
 
+#This repo, and this readme, are far from complete.  Please excuse their untidy manner.#
+
 Welcome to my first GitHub repo.  I'm a WordPress developer, and this is an OO framework that wraps WordPress Objects.
 
 **Basic Usage**
