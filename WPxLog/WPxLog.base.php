@@ -33,7 +33,7 @@ class WPxLogItem extends WPxItem {
 	protected $function;
 	protected $line;
 
-	proted $show_file;
+	protected $show_file;
 	protected $show_line;
 	protected $show_bt = false;
 
